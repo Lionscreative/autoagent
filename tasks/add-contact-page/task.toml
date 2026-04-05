@@ -1,5 +1,5 @@
 [task]
-name = "add-contact-page"
+name = "kleap/add-contact-page"
 description = "Add a contact page to an existing website without breaking it"
 author = "kleap"
 difficulty = "easy"

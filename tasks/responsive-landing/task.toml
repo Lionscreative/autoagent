@@ -1,5 +1,5 @@
 [task]
-name = "responsive-landing"
+name = "kleap/responsive-landing"
 description = "Build a responsive SaaS landing page with multiple sections"
 author = "kleap"
 difficulty = "hard"

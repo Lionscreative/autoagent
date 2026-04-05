@@ -1,5 +1,5 @@
 [task]
-name = "fix-build-error"
+name = "kleap/fix-build-error"
 description = "Fix TypeScript build errors in a broken Next.js project"
 author = "kleap"
 difficulty = "easy"

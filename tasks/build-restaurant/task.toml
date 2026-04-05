@@ -1,5 +1,5 @@
 [task]
-name = "build-restaurant"
+name = "kleap/build-restaurant"
 description = "Build a restaurant website with menu and reservation info"
 author = "kleap"
 difficulty = "medium"

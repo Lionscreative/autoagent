@@ -1,5 +1,5 @@
 [task]
-name = "build-portfolio"
+name = "kleap/build-portfolio"
 description = "Build a professional portfolio website from scratch"
 author = "kleap"
 difficulty = "medium"
