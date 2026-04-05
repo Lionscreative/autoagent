@@ -163,14 +163,40 @@ def create_agent(environment: BaseEnvironment) -> Agent:
     )
 
 
+async def _pre_read_files(environment: BaseEnvironment) -> str:
+    """Pre-read key project files so the agent doesn't need to."""
+    files_to_read = [
+        "/project/app/page.tsx",
+        "/project/app/layout.tsx",
+        "/project/app/globals.css",
+    ]
+    parts = []
+    for path in files_to_read:
+        try:
+            result = await environment.exec(command=f"cat '{path}' 2>/dev/null", timeout_sec=5)
+            content = result.stdout
+            if content:
+                parts.append(f"### {path}\n```tsx\n{content}\n```")
+        except Exception:
+            pass
+    if parts:
+        return "\n\n## Current project files\n\n" + "\n\n".join(parts)
+    return ""
+
+
 async def run_task(
     environment: BaseEnvironment,
     instruction: str,
 ) -> tuple[object, int]:
     """Run the agent on a task and return (result, duration_ms)."""
     agent = create_agent(environment)
+
+    # Pre-read existing files to save the agent from needing read_file calls
+    context = await _pre_read_files(environment)
+
     t0 = time.time()
-    result = await Runner.run(agent, input=instruction, max_turns=MAX_TURNS)
+    enhanced_input = instruction + context
+    result = await Runner.run(agent, input=enhanced_input, max_turns=MAX_TURNS)
     duration_ms = int((time.time() - t0) * 1000)
     return result, duration_ms
 
