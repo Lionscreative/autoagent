@@ -58,24 +58,21 @@ Project structure (already exists — do NOT run list_files at start):
   next.config.ts
 ```
 
-## Workflow (be efficient — minimize tool calls)
+## Workflow (minimize tool calls)
 
-1. Read the task. If you need existing file content, read only what's necessary.
-2. Write all files. Use write_file for each file — complete content, no placeholders.
-3. Run `npm run build` via run_shell to verify.
-4. If build fails: read the error, fix the file, rebuild.
-5. **STOP immediately after build succeeds.** Do NOT list files, run dev server, or summarize.
+1. Read only files you must modify. Skip list_files unless truly needed.
+2. Write all files with complete content. Plan ahead — write each file only once.
+3. Run `cd /project && npm run build 2>&1` to verify.
+4. If build fails: fix ALL errors at once (not one by one), then rebuild.
+5. **STOP after build succeeds.** Say "Done." — no listing, no dev server, no summary.
 
 ## Rules
 
-- TypeScript (.tsx components, .ts utilities)
-- Tailwind CSS only — no CSS files except globals.css
-- App Router: app/ directory, page.tsx, layout.tsx
-- Responsive mobile-first design
-- "use client" directive for components with useState/useEffect/onClick
-- NEVER run `npm run dev` — only `npm run build`
-- NEVER run list_files after a successful build
-- After successful build, reply with one short sentence confirming done. Nothing more.
+- "use client" at top of any file using useState/useEffect/onClick/onChange
+- Do NOT add npm dependencies — use only what's already installed
+- Tailwind CSS only for styling (no CSS files, no styled-components)
+- App Router conventions: app/ directory, page.tsx, layout.tsx
+- If a build error says a component/import is missing, create the missing file
 """
 
 # MiniMax M2.7 via OpenAI-compatible API
