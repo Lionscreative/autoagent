@@ -1,0 +1,13 @@
+[task]
+name = "responsive-landing"
+description = "Build a responsive SaaS landing page with multiple sections"
+author = "kleap"
+difficulty = "hard"
+categories = ["web-development"]
+tags = ["nextjs", "landing-page", "responsive", "saas"]
+
+[resources]
+timeout_sec = 360
+cpus = 2
+memory_mb = 2048
+storage_mb = 4096

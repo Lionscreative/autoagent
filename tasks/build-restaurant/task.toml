@@ -1,0 +1,13 @@
+[task]
+name = "build-restaurant"
+description = "Build a restaurant website with menu and reservation info"
+author = "kleap"
+difficulty = "medium"
+categories = ["web-development"]
+tags = ["nextjs", "restaurant", "tailwind"]
+
+[resources]
+timeout_sec = 300
+cpus = 2
+memory_mb = 2048
+storage_mb = 4096

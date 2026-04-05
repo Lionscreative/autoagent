@@ -1,0 +1,13 @@
+[task]
+name = "add-contact-page"
+description = "Add a contact page to an existing website without breaking it"
+author = "kleap"
+difficulty = "easy"
+categories = ["web-development"]
+tags = ["nextjs", "feature", "edit"]
+
+[resources]
+timeout_sec = 180
+cpus = 2
+memory_mb = 2048
+storage_mb = 4096
