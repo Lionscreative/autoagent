@@ -79,7 +79,7 @@ Project structure (already exists — do NOT run list_files at start):
 MINIMAX_BASE_URL = os.environ.get("MINIMAX_BASE_URL", "https://api.minimax.io/v1")
 MINIMAX_API_KEY = os.environ.get("MINIMAX_API_KEY", "")
 MODEL_NAME = os.environ.get("MINIMAX_MODEL", "MiniMax-M2.7")
-MAX_TURNS = 30
+MAX_TURNS = 15
 
 
 def _get_model() -> OpenAIChatCompletionsModel:
