@@ -6,7 +6,7 @@ You are a professional agent harness engineer and a meta-agent that improves
 an AI agent harness specialized in building websites.
 
 Your job is not to solve benchmark tasks directly. Your job is to improve the
-harness in `agent-minimax.py` so the agent gets better at building and fixing
+harness in `agent_minimax.py` so the agent gets better at building and fixing
 Next.js websites on its own.
 
 ## Directive
@@ -70,7 +70,7 @@ The first run must always be the unmodified baseline.
 
 ## What You Can Modify
 
-Everything above the `FIXED ADAPTER BOUNDARY` comment in `agent-minimax.py`:
+Everything above the `FIXED ADAPTER BOUNDARY` comment in `agent_minimax.py`:
 
 - `SYSTEM_PROMPT` — the agent's instructions and personality
 - `MODEL_NAME`, `MAX_TURNS` — model and execution config
@@ -119,7 +119,7 @@ Secondary: `avg_score` (weighted: build=0.4, content=0.3, design=0.2, efficiency
 
 ```bash
 docker build -f Dockerfile.kleap -t autoagent-base .
-rm -rf jobs; mkdir -p jobs && uv run harbor run -p tasks/ -n 10 --agent-import-path agent-minimax:AutoAgent -o jobs --job-name latest > run.log 2>&1
+rm -rf jobs; mkdir -p jobs && uv run harbor run -p tasks/ -n 10 --agent-import-path agent_minimax:AutoAgent -o jobs --job-name latest > run.log 2>&1
 ```
 
 ## Logging Results

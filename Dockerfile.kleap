@@ -16,7 +16,7 @@ COPY pyproject.toml ./
 RUN uv pip install --system .
 
 # Agent code
-COPY agent-minimax.py ./
+COPY agent_minimax.py ./
 
 # Create a minimal Next.js project template
 RUN mkdir -p /template && cd /template && \
