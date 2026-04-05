@@ -34,9 +34,11 @@ page = "/project/app/page.tsx"
 if os.path.exists(page):
     c = open(page).read()
     check(len(c) > 50, 0.5, "Page has content")
-    # Should NOT have the original broken import
-    check("MissingComponent" not in c or "missing" not in c.split("import")[0] if "import" in c else True,
-          0.5, "Broken import removed or fixed")
+    # The broken import should be fixed — either removed or the component created
+    missing_comp_file = "/project/components/missing.tsx"
+    import_removed = "MissingComponent" not in c
+    component_created = os.path.exists(missing_comp_file) or os.path.exists("/project/src/components/missing.tsx")
+    check(import_removed or component_created, 0.5, "Broken import fixed (removed or component created)")
 
 final = round(score / max_score, 3)
 print("\n".join(details))

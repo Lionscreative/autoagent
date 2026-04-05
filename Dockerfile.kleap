@@ -20,7 +20,7 @@ COPY agent_minimax.py ./
 
 # Create a minimal Next.js project template
 RUN mkdir -p /template && cd /template && \
-    npx --yes create-next-app@latest project \
+    npx --yes create-next-app@15.3.0 project \
       --typescript --tailwind --eslint --app --no-src-dir \
       --import-alias "@/*" --turbopack --yes && \
     cd project && npm install && \

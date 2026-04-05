@@ -6,7 +6,7 @@ REWARD_PATH = "/logs/verifier/reward.txt"
 os.makedirs(os.path.dirname(REWARD_PATH), exist_ok=True)
 
 score = 0.0
-max_score = 6.0
+max_score = 5.75
 details = []
 
 

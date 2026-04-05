@@ -8,11 +8,12 @@ the agent's ability to build and fix Next.js websites.
 Run all tasks:
   docker build -f Dockerfile.kleap -t autoagent-base .
   set -a && source .env && set +a
-  uv run harbor run -p tasks/ --agent-import-path agent-minimax:AutoAgent -o jobs
+  uv run harbor run -p tasks/ --agent-import-path agent_minimax:AutoAgent -o jobs
 """
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import time
@@ -51,7 +52,7 @@ You are working in a Next.js project with:
 - Next.js 15+ with App Router
 - React 19, TypeScript
 - Tailwind CSS for styling
-- The project is in /app with the standard Next.js structure
+- The project is in /project with the standard Next.js structure
 
 ## Approach
 
@@ -115,8 +116,10 @@ def create_tools(environment: BaseEnvironment) -> list[FunctionTool]:
     async def write_file(path: str, content: str) -> str:
         """Write content to a file. Creates parent directories if needed."""
         try:
+            safe_path = path.replace("'", "'\\''")
+            encoded = base64.b64encode(content.encode()).decode()
             result = await environment.exec(
-                command=f"mkdir -p $(dirname '{path}') && cat > '{path}' << 'KLEAP_EOF'\n{content}\nKLEAP_EOF",
+                command=f"mkdir -p $(dirname '{safe_path}') && echo '{encoded}' | base64 -d > '{safe_path}'",
                 timeout_sec=30,
             )
             return f"File written: {path}"
@@ -127,7 +130,8 @@ def create_tools(environment: BaseEnvironment) -> list[FunctionTool]:
     async def read_file(path: str) -> str:
         """Read the contents of a file."""
         try:
-            result = await environment.exec(command=f"cat '{path}'", timeout_sec=10)
+            safe_path = path.replace("'", "'\\''")
+            result = await environment.exec(command=f"cat '{safe_path}'", timeout_sec=10)
             return result.stdout or "(empty file)"
         except Exception as exc:
             return f"ERROR reading {path}: {exc}"
@@ -136,8 +140,9 @@ def create_tools(environment: BaseEnvironment) -> list[FunctionTool]:
     async def list_files(directory: str = ".") -> str:
         """List files in a directory recursively (excluding node_modules, .next)."""
         try:
+            safe_dir = directory.replace("'", "'\\''")
             result = await environment.exec(
-                command=f"find '{directory}' -type f -not -path '*/node_modules/*' -not -path '*/.next/*' -not -path '*/.git/*' | head -100",
+                command=f"find '{safe_dir}' -type f -not -path '*/node_modules/*' -not -path '*/.next/*' -not -path '*/.git/*' | head -100",
                 timeout_sec=15,
             )
             return result.stdout or "(no files)"

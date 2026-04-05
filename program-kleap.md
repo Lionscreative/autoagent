@@ -59,7 +59,7 @@ Based on real production data, these are the top failure categories:
 
 Before starting a new experiment:
 
-1. Read `README.md`, this file, and `agent-minimax.py`.
+1. Read `README.md`, this file, and `agent_minimax.py`.
 2. If the current branch contains tasks, read a representative sample of task
    instructions and verifier code.
 3. Build the base image: `docker build -f Dockerfile.kleap -t autoagent-base .`
@@ -101,7 +101,7 @@ The current harness has 4 tools: `run_shell`, `write_file`, `read_file`,
 
 ## What You Must Not Modify
 
-Inside `agent-minimax.py`, there is a fixed adapter boundary marked by comments.
+Inside `agent_minimax.py`, there is a fixed adapter boundary marked by comments.
 Do not modify that fixed section unless the human explicitly asks.
 
 ## Goal
