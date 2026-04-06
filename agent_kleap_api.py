@@ -334,10 +334,15 @@ class AutoAgent(BaseAgent):
                 except Exception as e:
                     print(f"[eval] Warning: failed to upload {path}: {e}")
 
+            # Combine all file contents for content analysis
+            all_code = "\n".join(f"{path}:\n{content}" for path, content in files.items()
+                                 if path.endswith((".tsx", ".ts", ".css")))
+
             # Write preview results so the test can use them
             preview_json = json.dumps({
                 "preview": preview,
                 "files": list(files.keys()),
+                "file_contents": all_code[:20000],  # First 20K of combined code
                 "tool_calls": trajectory.get("n_tool_calls", 0),
                 "duration_ms": trajectory.get("duration_ms", 0),
                 "ai_text": trajectory.get("ai_text", "")[:1000],

@@ -1,4 +1,4 @@
-"""Score: was the contact page added? Check preview."""
+"""Score: was the contact page added? Check preview + files."""
 import os, json
 
 REWARD_PATH = "/logs/verifier/reward.txt"
@@ -14,16 +14,20 @@ def check(cond, pts, desc):
 
 eval_data = json.loads(open("/tmp/eval_results.json").read()) if os.path.exists("/tmp/eval_results.json") else {}
 preview = eval_data.get("preview", {})
+file_list = eval_data.get("files", [])
+code = eval_data.get("file_contents", "").lower()
 pages_ok = preview.get("pages_ok", {})
 
-check(preview.get("homepage_ok"), 1.5, "Homepage still works")
-check(pages_ok.get("/contact", False), 2.0, "Contact page loads in preview")
+check(preview.get("homepage_ok"), 1.0, "Homepage still works")
 
-# Check contact page has form elements in HTML (if we can get it)
-html = preview.get("homepage_html", "").lower()
-check("contact" in html or pages_ok.get("/contact", False), 0.5, "Contact link visible or page exists")
-check(len(eval_data.get("files", [])) >= 1, 0.5, "Files were created/modified")
-check(eval_data.get("tool_calls", 99) <= 30, 0.5, "Efficient (<30 tool calls)")
+contact_in_preview = pages_ok.get("/contact", False)
+contact_in_files = any("contact/page" in f for f in file_list)
+check(contact_in_preview or contact_in_files, 2.0, "Contact page exists (preview or file)")
+
+check("form" in code or "input" in code or "kleapform" in code, 0.5, "Has form elements")
+check("acme" in code or "contact" in code, 0.5, "Has contact/company info")
+check(eval_data.get("tool_calls", 99) <= 30, 0.5, "Efficient")
+check(len(file_list) >= 1, 0.5, "Files created")
 
 final = round(score / max_score, 3)
 print("\n".join(details))

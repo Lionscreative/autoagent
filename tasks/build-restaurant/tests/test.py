@@ -1,4 +1,4 @@
-"""Score the restaurant website based on what the USER sees."""
+"""Score restaurant — preview + file content."""
 import os, json
 
 REWARD_PATH = "/logs/verifier/reward.txt"
@@ -14,31 +14,36 @@ def check(cond, pts, desc):
 
 eval_data = json.loads(open("/tmp/eval_results.json").read()) if os.path.exists("/tmp/eval_results.json") else {}
 preview = eval_data.get("preview", {})
+file_list = eval_data.get("files", [])
+code = eval_data.get("file_contents", "").lower()
 html = preview.get("homepage_html", "").lower()
-pages_ok = preview.get("pages_ok", {})
+content = html + "\n" + code
 
-# 1. PREVIEW (4 pts)
-check(preview.get("homepage_ok"), 3.0, "Homepage loads in preview")
-check(preview.get("homepage_length", 0) > 1000, 1.0, "Homepage has substantial HTML")
+# 1. PREVIEW (3 pts)
+check(preview.get("homepage_ok"), 2.0, "Homepage loads")
+check(preview.get("homepage_length", 0) > 500 or len(code) > 1000, 1.0, "Substantial content")
 
 # 2. MENU PAGE (2 pts)
-check(pages_ok.get("/menu", False), 1.5, "Menu page loads")
-check("€" in html or "menu" in html or "pasta" in html or "antipasti" in html, 0.5, "Menu content visible")
+pages_ok = preview.get("pages_ok", {})
+menu_exists = pages_ok.get("/menu", False) or any("menu/page" in f for f in file_list)
+check(menu_exists, 1.0, "Menu page exists (preview or file)")
+menu_items = sum(1 for w in ["pasta", "antipasti", "dessert", "tiramisu", "carbonara", "bruschetta"] if w in content)
+check(menu_items >= 2, 0.5, f"Menu has food items ({menu_items})")
+check("€" in content or "eur" in content, 0.5, "Prices in euros")
 
-# 3. CONTENT (2 pts)
-check("dolce vita" in html or "restaurant" in html or "italian" in html, 0.5, "Restaurant name/type visible")
-check("paris" in html or "rivoli" in html, 0.5, "Location visible")
-check("reserve" in html or "réserv" in html or "book" in html, 0.5, "CTA/reservation visible")
-check("<nav" in html or "nav" in html, 0.5, "Navigation visible")
+# 3. CONTENT (3 pts)
+check("dolce vita" in content or "italian" in content or "restaurant" in content, 0.75, "Restaurant identity")
+check("paris" in content or "rivoli" in content, 0.75, "Location visible")
+check("reserve" in content or "réserv" in content or "book" in content or "table" in content, 0.75, "Reservation CTA")
+check("nav" in code or "navbar" in code or "navigation" in code, 0.75, "Navigation present")
 
-# 4. FILES (1 pt)
-file_list = eval_data.get("files", [])
-check(len(file_list) >= 5, 0.5, f"Created {len(file_list)} files (>=5)")
-check(any("menu" in f.lower() for f in file_list), 0.5, "Menu component/page created")
+# 4. DESIGN (1 pt)
+check(any(bp in code for bp in ["sm:", "md:", "lg:"]), 0.5, "Responsive")
+check(len(file_list) >= 5, 0.5, f"Created {len(file_list)} files")
 
 # 5. EFFICIENCY (1 pt)
-check(eval_data.get("tool_calls", 99) <= 50, 0.5, "Efficient tool usage")
-check(eval_data.get("duration_ms", 999999) <= 300000, 0.5, "Completed in <5min")
+check(eval_data.get("tool_calls", 99) <= 50, 0.5, "Efficient")
+check(eval_data.get("duration_ms", 999999) <= 300000, 0.5, "Fast")
 
 final = round(score / max_score, 3)
 print("\n".join(details))

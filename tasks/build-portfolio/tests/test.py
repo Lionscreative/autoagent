@@ -1,81 +1,56 @@
-"""Score the portfolio website based on what the USER sees (preview + files)."""
-import os
-import json
+"""Score portfolio — preview + file content (handles client-side rendering)."""
+import os, json
 
 REWARD_PATH = "/logs/verifier/reward.txt"
 os.makedirs(os.path.dirname(REWARD_PATH), exist_ok=True)
-
 score = 0.0
 max_score = 10.0
 details = []
 
-
-def check(condition, points, desc):
+def check(cond, pts, desc):
     global score
-    if condition:
-        score += points
-        details.append(f"PASS ({points}): {desc}")
-    else:
-        details.append(f"FAIL (0/{points}): {desc}")
+    if cond: score += pts; details.append(f"PASS ({pts}): {desc}")
+    else: details.append(f"FAIL (0/{pts}): {desc}")
 
-
-# Load eval results from the agent (preview checks + file list)
-eval_data = {}
-if os.path.exists("/tmp/eval_results.json"):
-    eval_data = json.loads(open("/tmp/eval_results.json").read())
-
+eval_data = json.loads(open("/tmp/eval_results.json").read()) if os.path.exists("/tmp/eval_results.json") else {}
 preview = eval_data.get("preview", {})
 file_list = eval_data.get("files", [])
+# Combined source code — catches content that "use client" hides from SSR HTML
+code = eval_data.get("file_contents", "").lower()
+html = preview.get("homepage_html", "").lower()
+# Search both HTML and source code for content
+content = html + "\n" + code
 
-# === 1. PREVIEW WORKS (4 points) — what the user actually sees ===
-check(preview.get("homepage_ok", False), 3.0, "Homepage loads in preview (HTTP 200)")
-check(preview.get("homepage_length", 0) > 1000, 1.0, "Homepage has substantial HTML (>1000 chars)")
+# 1. PREVIEW (3 pts)
+check(preview.get("homepage_ok"), 2.0, "Homepage loads in preview")
+check(preview.get("homepage_length", 0) > 500 or len(code) > 1000, 1.0, "Has substantial content")
 
-# === 2. PAGES EXIST (2 points) ===
+# 2. PAGES EXIST (2 pts) — check both preview AND file list
 pages_ok = preview.get("pages_ok", {})
-about_ok = pages_ok.get("/about", False)
-contact_ok = pages_ok.get("/contact", False)
-check(about_ok, 1.0, "About page loads in preview")
-check(contact_ok, 1.0, "Contact page loads in preview")
+about_exists = pages_ok.get("/about", False) or any("about/page" in f for f in file_list)
+contact_exists = pages_ok.get("/contact", False) or any("contact/page" in f for f in file_list)
+check(about_exists, 1.0, "About page exists (preview or file)")
+check(contact_exists, 1.0, "Contact page exists (preview or file)")
 
-# === 3. CONTENT QUALITY from homepage HTML (2 points) ===
-html = preview.get("homepage_html", "")
-html_lower = html.lower()
+# 3. CONTENT (3 pts) — check in source code too (not just SSR HTML)
+check("sarah" in content or "photographer" in content or "portfolio" in content,
+      0.75, "Relevant content (photographer/portfolio/Sarah)")
+check("gallery" in content or "photo" in content or "image" in content or "work" in content,
+      0.75, "Gallery/photo section in code")
+check("<h1" in content or "text-5xl" in content or "text-4xl" in content or "text-6xl" in content,
+      0.75, "Has hero heading (h1 or large text)")
+check("wedding" in content or "portrait" in content or "event" in content,
+      0.75, "Lists photography services")
 
-check("sarah" in html_lower or "photographer" in html_lower or "portfolio" in html_lower,
-      0.5, "Homepage has relevant content (photographer/portfolio)")
-check("gallery" in html_lower or "photo" in html_lower or "work" in html_lower or "image" in html_lower,
-      0.5, "Homepage has gallery/photo section")
-# Check for a compelling hero section
-has_hero = any(tag in html_lower for tag in ["<h1", "<hero", "hero"])
-check(has_hero, 0.5, "Homepage has hero/heading section")
-# No broken content
-no_error = "error" not in html_lower[:500] and "not found" not in html_lower[:500]
-check(no_error, 0.5, "No error messages visible on homepage")
+# 4. DESIGN QUALITY (1 pt) — check source code for Tailwind patterns
+check(any(bp in code for bp in ["sm:", "md:", "lg:"]), 0.5, "Responsive breakpoints")
+check("hover:" in code or "transition" in code, 0.5, "Interactive states")
 
-# === 4. FILES CREATED (1 point) ===
-has_components = sum(1 for f in file_list if "component" in f.lower() or f.endswith(".tsx"))
-check(has_components >= 3, 0.5, "Created 3+ component files")
-check(len(file_list) >= 5, 0.5, "Created 5+ total files")
-
-# === 5. EFFICIENCY (1 point) ===
-tool_calls = eval_data.get("tool_calls", 0)
-duration_s = eval_data.get("duration_ms", 999999) / 1000
-check(tool_calls <= 50, 0.5, f"Efficient: {tool_calls} tool calls (<=50)")
-check(duration_s <= 300, 0.5, f"Fast: {duration_s:.0f}s (<=300s)")
-
-# If no eval results at all, fall back to checking local files
-if not eval_data:
-    details.append("WARNING: No eval_results.json — agent may not be using API mode")
-    # Check if local files exist as fallback
-    for root, _, files in os.walk("/project/app"):
-        for f in files:
-            if f.endswith(".tsx"):
-                score += 0.1
-                break
+# 5. EFFICIENCY (1 pt)
+check(eval_data.get("tool_calls", 99) <= 50, 0.5, "Efficient tool usage")
+check(eval_data.get("duration_ms", 999999) <= 300000, 0.5, "Completed in <5min")
 
 final = round(score / max_score, 3)
 print("\n".join(details))
 print(f"\nTotal: {score}/{max_score} = {final}")
-with open(REWARD_PATH, "w") as f:
-    f.write(str(final))
+with open(REWARD_PATH, "w") as f: f.write(str(final))
