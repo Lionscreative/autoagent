@@ -1,0 +1,13 @@
+[task]
+name = "kleap/build-fitness"
+description = "Build a personal training business website with services and pricing"
+author = "kleap"
+difficulty = "medium"
+categories = ["web-development"]
+tags = ["nextjs", "fitness", "pricing", "tailwind"]
+
+[resources]
+timeout_sec = 300
+cpus = 2
+memory_mb = 2048
+storage_mb = 4096

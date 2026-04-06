@@ -1,0 +1,1 @@
+Create a project management dashboard app called TaskFlow. Show a sidebar with navigation (Dashboard, Projects, Team, Settings), a main content area with a kanban board showing 3 columns (To Do, In Progress, Done) with sample tasks.

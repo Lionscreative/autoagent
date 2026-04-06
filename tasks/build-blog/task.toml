@@ -1,0 +1,13 @@
+[task]
+name = "kleap/build-blog"
+description = "Build a minimalist coffee blog with articles, about page, and newsletter"
+author = "kleap"
+difficulty = "medium"
+categories = ["web-development"]
+tags = ["nextjs", "blog", "minimalist", "newsletter", "tailwind"]
+
+[resources]
+timeout_sec = 300
+cpus = 2
+memory_mb = 2048
+storage_mb = 4096

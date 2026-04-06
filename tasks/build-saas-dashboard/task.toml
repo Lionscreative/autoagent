@@ -1,0 +1,13 @@
+[task]
+name = "kleap/build-saas-dashboard"
+description = "Build a project management dashboard with sidebar and kanban board"
+author = "kleap"
+difficulty = "hard"
+categories = ["web-development"]
+tags = ["nextjs", "dashboard", "kanban", "saas", "tailwind"]
+
+[resources]
+timeout_sec = 300
+cpus = 2
+memory_mb = 2048
+storage_mb = 4096

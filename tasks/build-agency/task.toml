@@ -1,0 +1,13 @@
+[task]
+name = "kleap/build-agency"
+description = "Build a creative agency portfolio with multiple pages and project grid"
+author = "kleap"
+difficulty = "hard"
+categories = ["web-development"]
+tags = ["nextjs", "portfolio", "agency", "multi-page", "tailwind"]
+
+[resources]
+timeout_sec = 300
+cpus = 2
+memory_mb = 2048
+storage_mb = 4096

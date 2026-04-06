@@ -1,0 +1,13 @@
+[task]
+name = "kleap/build-bakery"
+description = "Build a French bakery website with products, hours, and location"
+author = "kleap"
+difficulty = "medium"
+categories = ["web-development"]
+tags = ["nextjs", "bakery", "french", "tailwind"]
+
+[resources]
+timeout_sec = 300
+cpus = 2
+memory_mb = 2048
+storage_mb = 4096
