@@ -9,4 +9,6 @@ dependencies = [
     "openpyxl",
     "numpy",
     "harbor",
+    "httpx",
+    "supabase",
 ]
