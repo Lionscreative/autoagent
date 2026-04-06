@@ -1,0 +1,13 @@
+[task]
+name = "kleap/build-expense-tracker"
+description = "Build an expense tracker with categories, totals, and visual breakdown"
+author = "kleap"
+difficulty = "medium"
+categories = ["web-development"]
+tags = ["nextjs", "finance", "interactive", "chart"]
+
+[resources]
+timeout_sec = 300
+cpus = 2
+memory_mb = 2048
+storage_mb = 4096

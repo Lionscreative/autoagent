@@ -1,0 +1,13 @@
+[task]
+name = "kleap/build-quiz"
+description = "Build an interactive quiz app about world capitals"
+author = "kleap"
+difficulty = "medium"
+categories = ["web-development"]
+tags = ["nextjs", "quiz", "interactive", "game"]
+
+[resources]
+timeout_sec = 300
+cpus = 2
+memory_mb = 2048
+storage_mb = 4096
