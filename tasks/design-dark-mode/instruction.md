@@ -1,0 +1,1 @@
+Create a dark mode portfolio for a UI designer called 'Alex Nova'. Full dark theme — dark backgrounds, no white borders or cards. Use accent colors like electric blue or neon green. Show projects in a grid.

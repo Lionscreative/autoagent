@@ -1,0 +1,1 @@
+Créer un site élégant pour un cabinet d'avocats 'Maître Laurent & Associés'. Style très professionnel et raffiné. Typographie soignée, palette sobre (navy, gold, cream). Pages: Accueil, Nos Expertises, Contact.

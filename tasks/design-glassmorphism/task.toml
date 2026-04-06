@@ -1,0 +1,13 @@
+[task]
+name = "kleap/design-glassmorphism"
+description = "Build a weather dashboard with glassmorphism style, frosted glass cards, and blur effects"
+author = "kleap"
+difficulty = "medium"
+categories = ["web-development"]
+tags = ["nextjs", "glassmorphism", "design", "dashboard", "tailwind"]
+
+[resources]
+timeout_sec = 300
+cpus = 2
+memory_mb = 2048
+storage_mb = 4096

@@ -1,0 +1,13 @@
+[task]
+name = "kleap/design-dark-mode"
+description = "Build a fully dark-themed portfolio with accent colors and no white elements"
+author = "kleap"
+difficulty = "medium"
+categories = ["web-development"]
+tags = ["nextjs", "dark-mode", "design", "portfolio", "tailwind"]
+
+[resources]
+timeout_sec = 300
+cpus = 2
+memory_mb = 2048
+storage_mb = 4096

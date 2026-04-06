@@ -1,0 +1,1 @@
+Build a premium animated landing page for an AI startup called 'NeuralFlow'. I want smooth scroll animations, hover effects on cards, a gradient hero background, and animated counters for stats. Make it feel premium and modern.

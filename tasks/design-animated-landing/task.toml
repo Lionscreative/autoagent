@@ -1,0 +1,13 @@
+[task]
+name = "kleap/design-animated-landing"
+description = "Build a premium animated landing page with scroll animations, hover effects, and gradients"
+author = "kleap"
+difficulty = "hard"
+categories = ["web-development"]
+tags = ["nextjs", "animation", "design", "landing-page", "tailwind"]
+
+[resources]
+timeout_sec = 300
+cpus = 2
+memory_mb = 2048
+storage_mb = 4096

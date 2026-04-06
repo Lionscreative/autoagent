@@ -1,0 +1,1 @@
+Create a startup showcase page for 'LaunchPad'. Use a bento grid layout — different sized cards showing features, stats, testimonials, and a CTA. Modern SaaS style with subtle shadows and micro-interactions.

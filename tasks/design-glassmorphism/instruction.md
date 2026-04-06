@@ -1,0 +1,1 @@
+Build a weather dashboard with glassmorphism style. Frosted glass cards over a gradient background. Show current weather, 5-day forecast, and humidity/wind stats. Use blur effects and semi-transparent backgrounds.
