@@ -211,7 +211,8 @@ class KleapEvalClient:
         Returns {homepage_ok, pages_ok: {path: bool}, homepage_html, status_codes}.
         """
         sb = self._get_admin_sb()
-        r = sb.table("apps").select("sandbox_id, vercel_deployment_url").eq("id", app_id).single().execute()
+        r = sb.table("apps").select("sandbox_id, vercel_deployment_url").eq("id", app_id).limit(1).execute()
+        r.data = r.data[0] if r.data else None
         preview_url = r.data.get("vercel_deployment_url") if r.data else None
 
         if not preview_url:
@@ -253,11 +254,10 @@ class KleapEvalClient:
         """Delete the test app and its data."""
         try:
             sb = self._get_admin_sb()
-            # Delete in order (foreign key constraints)
-            sb.table("chat_messages").delete().eq("chat_id",
-                sb.table("chats").select("id").eq("app_id", app_id).execute().data[0]["id"]
-                if sb.table("chats").select("id").eq("app_id", app_id).execute().data else -1
-            ).execute()
+            # Get chat IDs first
+            chats = sb.table("chats").select("id").eq("app_id", app_id).execute()
+            for chat in chats.data:
+                sb.table("messages").delete().eq("chat_id", chat["id"]).execute()
             sb.table("app_files").delete().eq("app_id", app_id).execute()
             sb.table("chats").delete().eq("app_id", app_id).execute()
             sb.table("apps").delete().eq("id", app_id).execute()
