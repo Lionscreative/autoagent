@@ -109,7 +109,7 @@ class KleapEvalClient:
                 # Create chat manually
                 chat_result = sb.table("chats").insert({
                     "app_id": app_id, "user_id": EVAL_USER_ID, "title": "Eval"
-                }).select("id").execute()
+                }).execute()
 
             chat_id = chat_result.data[0]["id"]
             print(f"[eval] App recovered from DB: id={app_id}, chat_id={chat_id}, "
