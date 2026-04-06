@@ -66,24 +66,54 @@ class KleapEvalClient:
         return self._admin_sb
 
     async def create_app(self, name: str) -> tuple[int, int]:
-        """Create a new app on Kleap. Returns (app_id, chat_id)."""
+        """Create a new app on Kleap. Returns (app_id, chat_id).
+
+        The create-app endpoint may return 500 due to sandbox file sync failures,
+        but the app + chat + sandbox are already created at that point.
+        We handle this by checking Supabase directly if the API fails.
+        """
         async with httpx.AsyncClient(timeout=120) as client:
             resp = await client.post(
                 f"{KLEAP_API_URL}/api/create-app",
                 json={"name": name},
                 headers=self._headers(),
             )
-            if resp.status_code != 200:
-                raise Exception(f"Create app failed ({resp.status_code}): {resp.text[:500]}")
 
-            data = resp.json()
-            if not data.get("success"):
-                raise Exception(f"Create app error: {data.get('error', 'unknown')}")
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("success"):
+                    result = data["result"]
+                    app_id = result["app"]["id"]
+                    chat_id = result["chatId"]
+                    print(f"[eval] Created app '{name}' (id={app_id}, chat_id={chat_id})")
+                    return app_id, chat_id
 
-            result = data["result"]
-            app_id = result["app"]["id"]
-            chat_id = result["chatId"]
-            print(f"[eval] Created app '{name}' (id={app_id}, chat_id={chat_id})")
+            # API returned error — but the app may still have been created
+            # (common case: sandbox created but file sync to DB failed)
+            print(f"[eval] create-app returned {resp.status_code}, checking DB...")
+            sb = self._get_admin_sb()
+
+            # Check if app was created
+            result = sb.table("apps").select("id,sandbox_id").eq("name", name).eq(
+                "user_id", EVAL_USER_ID
+            ).order("created_at", desc=True).limit(1).execute()
+
+            if not result.data:
+                raise Exception(f"Create app failed ({resp.status_code}): {resp.text[:300]}")
+
+            app_id = result.data[0]["id"]
+
+            # Check if chat was created
+            chat_result = sb.table("chats").select("id").eq("app_id", app_id).limit(1).execute()
+            if not chat_result.data:
+                # Create chat manually
+                chat_result = sb.table("chats").insert({
+                    "app_id": app_id, "user_id": EVAL_USER_ID, "title": "Eval"
+                }).select("id").execute()
+
+            chat_id = chat_result.data[0]["id"]
+            print(f"[eval] App recovered from DB: id={app_id}, chat_id={chat_id}, "
+                  f"sandbox={result.data[0].get('sandbox_id')}")
             return app_id, chat_id
 
     async def send_prompt(self, chat_id: int, prompt: str) -> dict:
@@ -140,8 +170,8 @@ class KleapEvalClient:
 
                     if evt == "data-tool-call":
                         trajectory["tool_calls"].append({
-                            "tool": data.get("toolName"),
-                            "id": data.get("toolUseId"),
+                            "tool": data.get("toolName") or data.get("tool_name") or data.get("name") or "unknown",
+                            "id": data.get("toolUseId") or data.get("tool_use_id") or "",
                         })
                     elif evt == "chunk":
                         trajectory["text_chunks"].append(data.get("chunk", ""))
@@ -167,18 +197,67 @@ class KleapEvalClient:
     async def get_app_files(self, app_id: int) -> dict[str, str]:
         """Get all files for an app from Supabase."""
         sb = self._get_admin_sb()
-        result = sb.table("app_files").select("path, content").eq("app_id", app_id).execute()
+        result = sb.table("app_files").select("file_path, content").eq("app_id", app_id).execute()
         files = {}
         for row in result.data:
-            if row.get("content"):
-                files[row["path"]] = row["content"]
+            if row.get("content") and row.get("file_path"):
+                files[row["file_path"]] = row["content"]
         print(f"[eval] Got {len(files)} files from app {app_id}")
         return files
 
+    async def check_preview(self, app_id: int, pages: list[str] | None = None) -> dict:
+        """Check the live preview URL — this is what the user actually sees.
+
+        Returns {homepage_ok, pages_ok: {path: bool}, homepage_html, status_codes}.
+        """
+        sb = self._get_admin_sb()
+        r = sb.table("apps").select("sandbox_id, vercel_deployment_url").eq("id", app_id).single().execute()
+        preview_url = r.data.get("vercel_deployment_url") if r.data else None
+
+        if not preview_url:
+            print("[eval] No preview URL — can't check preview")
+            return {"homepage_ok": False, "error": "no preview url"}
+
+        base_url = preview_url.rstrip("/")
+        result = {"base_url": base_url, "status_codes": {}, "pages_ok": {}}
+
+        pages_to_check = ["/"] + (pages or [])
+
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+            for page in pages_to_check:
+                url = f"{base_url}{page}"
+                try:
+                    resp = await client.get(url)
+                    status = resp.status_code
+                    result["status_codes"][page] = status
+                    ok = status == 200 and len(resp.text) > 100
+                    result["pages_ok"][page] = ok
+
+                    if page == "/":
+                        result["homepage_ok"] = ok
+                        result["homepage_html"] = resp.text[:5000] if ok else ""
+                        result["homepage_length"] = len(resp.text)
+
+                    print(f"[eval] Preview {page}: {status} ({len(resp.text)} chars)")
+                except Exception as e:
+                    result["status_codes"][page] = 0
+                    result["pages_ok"][page] = False
+                    print(f"[eval] Preview {page}: FAILED ({e})")
+
+        if "/" not in result.get("status_codes", {}):
+            result["homepage_ok"] = False
+
+        return result
+
     async def cleanup_app(self, app_id: int) -> None:
-        """Delete the test app."""
+        """Delete the test app and its data."""
         try:
             sb = self._get_admin_sb()
+            # Delete in order (foreign key constraints)
+            sb.table("chat_messages").delete().eq("chat_id",
+                sb.table("chats").select("id").eq("app_id", app_id).execute().data[0]["id"]
+                if sb.table("chats").select("id").eq("app_id", app_id).execute().data else -1
+            ).execute()
             sb.table("app_files").delete().eq("app_id", app_id).execute()
             sb.table("chats").delete().eq("app_id", app_id).execute()
             sb.table("apps").delete().eq("id", app_id).execute()
@@ -222,13 +301,23 @@ class AutoAgent(BaseAgent):
             # 2. Send benchmark prompt to our REAL AI agent
             trajectory = await self._client.send_prompt(chat_id, instruction)
 
-            # 3. Download resulting files from Supabase
+            # 3. Check the LIVE PREVIEW (what the user actually sees)
+            # Parse instruction for expected pages
+            expected_pages = []
+            instruction_lower = instruction.lower()
+            for page in ["/about", "/contact", "/menu", "/pricing", "/gallery", "/blog", "/services"]:
+                page_name = page.strip("/")
+                if page_name in instruction_lower:
+                    expected_pages.append(page)
+
+            preview = await self._client.check_preview(app_id, expected_pages)
+
+            # 4. Download resulting files from Supabase
             files = await self._client.get_app_files(app_id)
 
-            # 4. Upload files to Docker container for build verification
+            # 5. Upload files + preview results to Docker container
             uploaded = 0
             for path, content in files.items():
-                # Map to /project/ in container
                 if path.startswith("/"):
                     full_path = f"/project{path}"
                 else:
@@ -245,7 +334,21 @@ class AutoAgent(BaseAgent):
                 except Exception as e:
                     print(f"[eval] Warning: failed to upload {path}: {e}")
 
-            print(f"[eval] Uploaded {uploaded}/{len(files)} files to container")
+            # Write preview results so the test can use them
+            preview_json = json.dumps({
+                "preview": preview,
+                "files": list(files.keys()),
+                "tool_calls": trajectory.get("n_tool_calls", 0),
+                "duration_ms": trajectory.get("duration_ms", 0),
+                "ai_text": trajectory.get("ai_text", "")[:1000],
+            })
+            preview_encoded = base64.b64encode(preview_json.encode()).decode()
+            await environment.exec(
+                command=f"echo '{preview_encoded}' | base64 -d > /tmp/eval_results.json",
+                timeout_sec=5,
+            )
+
+            print(f"[eval] Uploaded {uploaded}/{len(files)} files + preview results")
 
             # 5. Write trajectory
             duration_ms = int((time.time() - t0) * 1000)
