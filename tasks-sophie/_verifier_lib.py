@@ -58,11 +58,20 @@ RE_ARABIC = re.compile(r'[\u0600-\u06FF\u0750-\u077F]')
 RE_CYRILLIC = re.compile(r'[\u0400-\u04FF]')
 RE_DEVANAGARI = re.compile(r'[\u0900-\u097F]')
 
-# English verbs that leak into French/German emails from MiniMax M2.7
+# English verbs/words that leak into French/German emails from MiniMax M2.7.
+# NOTE: matches the BEGINNING of a word (not just whole words) to catch
+# hybrid conjugations like "publishent", "searchez", "exerciseront".
 EN_LEAK_IN_FR = re.compile(
-    r'\b(publish(es|ed|ing)?|search(es|ed|ing)?|exercises?|customers?|because|'
-    r'without|already|their|about|should|would|could|have|website|content|'
-    r'marketing(?!\b))\b',
+    r'\b('
+    r'publish(es|ed|ing|ent|ez|era|é)?|'   # publish + all FR verb endings
+    r'search(es|ed|ing|e|es|ent|ez)?|'
+    r'exercise(s|d|ing|nt|z|ra)?|'
+    r'customers?|because|without|already|their|about|should|would|could|'
+    r'literally|basically|actually|really|obviously|'
+    r'website|content|marketing|'
+    r'rank(s|ed|ing)?|boost(s|ed|ing)?|drive(s|n)?\s+traffic|'
+    r'sincerely|regards|cheers'
+    r')\b',
     re.IGNORECASE,
 )
 
@@ -296,12 +305,35 @@ def _call_judge_proxy(prompt: str) -> str:
     return content
 
 
+def read_host_judge(eval_data: dict) -> tuple[float, list[str]]:
+    """Read pre-computed judge results from the host (agent_sophie.py ran the judge).
+
+    The verifier runs inside a Docker container without API keys, so the judge
+    call must happen on the host side. The host writes the results into
+    eval_data["judge_results"] before the verifier reads eval_results.json.
+    """
+    details = []
+    judge_results = eval_data.get("judge_results")
+    if not judge_results:
+        details.append("JUDGE SKIPPED: no judge_results in eval_data (personas missing from task?)")
+        return 2.5, details
+    if judge_results.get("error"):
+        details.append(f"JUDGE ERROR: {judge_results['error']}")
+        return 0.0, details
+
+    avg = float(judge_results.get("avg_score", 0))
+    details.extend(judge_results.get("details", []))
+    return avg, details
+
+
 def run_persona_judge(
     email: dict,
     personas: list[str],
     judge_language: str = "fr",
 ) -> tuple[float, list[str]]:
-    """Run 3 persona judges, average the scores.
+    """DEPRECATED: kept for backward-compat. The judge now runs on the host side
+    in agent_sophie.py. This function is only invoked if the pre-computed
+    results are missing.
 
     Tries Groq direct first; falls back to Vercel proxy if geo-blocked.
     Returns (soft_score_0_to_5, details_log).
@@ -444,12 +476,16 @@ def score_email(
         print(line)
     print(f"HARD SUBTOTAL: {hard_score:.2f}/5")
 
-    # SOFT JUDGE
-    soft_score, soft_details = run_persona_judge(
-        email=email,
-        personas=personas,
-        judge_language=expected_language,
-    )
+    # SOFT JUDGE — prefer pre-computed results from the host (agent_sophie.py)
+    # Falls back to inline Groq call only if that fails.
+    if eval_data.get("judge_results"):
+        soft_score, soft_details = read_host_judge(eval_data)
+    else:
+        soft_score, soft_details = run_persona_judge(
+            email=email,
+            personas=personas,
+            judge_language=expected_language,
+        )
     print("\n--- PERSONA JUDGE ---")
     for line in soft_details:
         print(line)
