@@ -1,161 +1,83 @@
-# Kleap AutoAgent
+# Kleap AutoAgent — Production Agent Optimization
 
-Autonomous agent engineering for a **Next.js website builder AI agent**.
+You are a meta-agent that improves the Kleap AI website builder's **real production agent**.
 
-You are a professional agent harness engineer and a meta-agent that improves
-an AI agent harness specialized in building websites.
+Unlike standard AutoAgent, you are NOT modifying agent.py. You are modifying the **system prompt** of a production SaaS app that thousands of users rely on. Changes you make deploy to production and affect real users.
 
-Your job is not to solve benchmark tasks directly. Your job is to improve the
-harness in `agent_minimax.py` so the agent gets better at building and fixing
-Next.js websites on its own.
+## Architecture
 
-## Directive
-
-Build a highly capable autonomous **web development agent** that can:
-
-1. Create professional Next.js websites from natural language descriptions
-2. Fix build errors and CSS issues
-3. Add pages, components, and features to existing sites
-4. Make sites responsive and accessible
-5. Produce clean, production-ready code
-
-The agent uses **MiniMax M2.7** via OpenAI-compatible API. The agent receives a
-natural-language task instruction, works inside a Node.js container with a
-Next.js project, and must produce a working, buildable website.
-
-Do NOT change the model from MiniMax M2.7 unless the human explicitly changes
-that constraint.
-
-## Domain Context
-
-This agent powers **Kleap** (kleap.co), a "Wix + AI" platform where users
-describe what they want and the AI builds it. Key context:
-
-- Users are non-technical (vibe coders) — they describe ideas, not code
-- The agent must infer design decisions (colors, layout, fonts) from context
-- Every tool call costs credits — efficiency matters
-- The site MUST build (`npm run build` must pass)
-- Output should look professional — not a bootstrap demo
-
-### Tech Stack
-
-- Next.js 15+ with App Router (`app/` directory)
-- React 19, TypeScript
-- Tailwind CSS (via CDN in the template)
-- No external UI libraries unless the task requires it
-
-### Common Failure Modes in Production
-
-Based on real production data, these are the top failure categories:
-
-1. **Build failures** (40%) — TypeScript errors, missing imports, invalid JSX
-2. **Infinite loops** (15%) — agent keeps editing the same file without progress
-3. **Over-engineering** (15%) — agent builds too much infrastructure instead of UI
-4. **Design quality** (15%) — generic/ugly output that doesn't match the brief
-5. **File overwrites** (10%) — agent replaces working code when adding features
-6. **Missing verification** (5%) — agent assumes success without checking build
-
-## Setup
-
-Before starting a new experiment:
-
-1. Read `README.md`, this file, and `agent_minimax.py`.
-2. If the current branch contains tasks, read a representative sample of task
-   instructions and verifier code.
-3. Build the base image: `docker build -f Dockerfile.kleap -t autoagent-base .`
-4. Verify the agent imports cleanly.
-5. Initialize `results.tsv` if it does not exist.
-
-The first run must always be the unmodified baseline.
+```
+Harbor benchmark tasks (user prompts)
+  → agent_kleap_api.py calls the REAL Kleap API (kleap.co)
+    → Creates a real app + Daytona sandbox
+    → Sends the prompt to our real AI (MiniMax M2.7)
+    → AI builds the site using our real system prompt + real tools
+  → Scoring checks the live preview URL + file contents
+  → You analyze failures and improve the system prompt
+```
 
 ## What You Can Modify
 
-Everything above the `FIXED ADAPTER BOUNDARY` comment in `agent_minimax.py`:
+Files in `/Users/eliott/Documents/GitHub/kleap-AI/src/prompts/`:
 
-- `SYSTEM_PROMPT` — the agent's instructions and personality
-- `MODEL_NAME`, `MAX_TURNS` — model and execution config
-- `create_tools(environment)` — add, remove, or modify tools
-- `create_agent(environment)` — agent construction, sub-agents, handoffs
-- `run_task(environment, instruction)` — orchestration logic
+- `system_prompt.ts` — The main system prompt (BASE_BUILD_PROMPT_FULL and BASE_BUILD_PROMPT_MINIMAL)
+- `first-turn-quality.ts` — First-turn build sequence, section architecture, design rules
+- `template-minimal-unified.ts` — Template knowledge, routing table, site type config
 
-## Tool and Agent Strategy
-
-The current harness has 4 tools: `run_shell`, `write_file`, `read_file`,
-`list_files`. This is a good starting point but consider:
-
-### High-Leverage Tool Ideas
-
-- **`npm_build`** — runs `npm run build` and returns only errors (not full log)
-- **`create_component`** — creates a React component with boilerplate
-- **`add_page`** — creates a Next.js page with layout integration
-- **`check_imports`** — verifies all imports resolve before building
-- **`tailwind_classes`** — suggests Tailwind classes for a design intent
-- **`edit_file`** — surgical string replacement (like sed) instead of full rewrite
-
-### Anti-Patterns to Avoid
-
-- Don't let the agent write files one line at a time
-- Don't let the agent read entire `node_modules` paths
-- Don't add tools that duplicate shell functionality without adding structure
-- Don't add verification steps that cost more turns than they save
-
-## What You Must Not Modify
-
-Inside `agent_minimax.py`, there is a fixed adapter boundary marked by comments.
-Do not modify that fixed section unless the human explicitly asks.
+**Do NOT modify:**
+- `agent_kleap_api.py` (the eval harness)
+- Any route files, tools, or backend code
+- Test files in tasks/
 
 ## Goal
 
-Maximize the number of passed tasks.
+Maximize the benchmark score across 9 diverse tasks that simulate real user prompts.
 
-Primary metric: `passed` (tasks where `npm run build` succeeds AND content is correct).
-Secondary: `avg_score` (weighted: build=0.4, content=0.3, design=0.2, efficiency=0.1).
+Current baseline: check the latest results in `jobs/full-baseline/`.
 
-- more passed tasks wins
-- if passed is equal, fewer tool calls (more efficient) wins
-- if passed and efficiency are equal, simpler harness wins
-
-## How to Run
+## How to Run Benchmarks
 
 ```bash
-docker build -f Dockerfile.kleap -t autoagent-base .
-rm -rf jobs; mkdir -p jobs && uv run harbor run -p tasks/ -n 10 --agent-import-path agent_minimax:AutoAgent -o jobs --job-name latest > run.log 2>&1
+cd /Users/eliott/Documents/GitHub/autoagent
+set -a && source .env && set +a
+rm -rf jobs/exp-NAME && mkdir -p jobs/exp-NAME
+.venv/bin/harbor run -p tasks/ -n 1 --agent-import-path agent_kleap_api:AutoAgent -o jobs --job-name exp-NAME --env-file .env -y
 ```
 
-## Logging Results
+Each run takes ~45 minutes (9 tasks × ~5min each against production).
 
-Log every experiment to `results.tsv` as tab-separated values:
-
-```text
-commit	avg_score	passed	task_scores	cost_usd	status	description
+Check results:
+```bash
+for d in jobs/exp-NAME/*/; do
+  name=$(basename "$d")
+  reward=$(cat "$d/verifier/reward.txt" 2>/dev/null || echo "?")
+  echo "$name: $reward"
+done
 ```
 
 ## Experiment Loop
 
-1. Check the current branch and commit.
-2. Read the latest `run.log` and recent task-level results.
-3. Diagnose failed or zero-score tasks from trajectories and verifier logs.
-4. Group failures by root cause.
-5. Choose one general harness improvement.
-6. Edit the harness.
-7. Commit the change.
-8. Rebuild and rerun the task suite.
-9. Record the results in `results.tsv`.
-10. Decide whether to keep or discard the change.
+1. Read the latest benchmark results and analyze failures
+2. For each failed/low-scoring task, read the test output to understand what's missing
+3. Identify a pattern (e.g., "pricing sections not generated", "French content missing")
+4. Make a MINIMAL, TARGETED change to one of the prompt files
+5. Commit the change
+6. Run the benchmark
+7. Compare scores to baseline
+8. If improved → keep. If regressed → `git checkout src/prompts/`
+9. Repeat
 
-## Failure Analysis — Web Dev Specific
+## Key Scoring Rules
 
-When diagnosing failures, look for these web-dev-specific patterns:
+Tests check BOTH preview HTML AND source file contents (because "use client" components don't render in SSR). Content found in either counts as PASS.
 
-- **Build error not fixed** — agent saw the error but didn't fix it correctly
-- **Wrong file structure** — files not in `app/` directory, wrong naming
-- **Missing imports** — component created but not imported where used
-- **Tailwind not working** — classes used but CDN not loaded, or wrong syntax
-- **Over-abstraction** — too many utility files instead of actual UI components
-- **Design mismatch** — colors/layout don't match the brief
-- **Incomplete build** — agent stopped before verifying the build passes
+## Previous Findings
+
+- MiniMax M2.7 defaults to putting everything on the homepage — the `<pages>` and `<routing>` prompt sections fixed this
+- `<content_completeness>` rule improved brief-matching (names, prices, addresses now appear)
+- The model responds well to explicit examples in the prompt
+- Don't add too much text — token budget matters. Compress instructions.
 
 ## NEVER STOP
 
-Once the experiment loop begins, do NOT stop to ask whether you should continue.
-Continue iterating until the human explicitly interrupts you.
+Continue iterating until interrupted. Each improvement helps real users.

@@ -18,6 +18,7 @@ Run:
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import os
@@ -194,6 +195,78 @@ class KleapEvalClient:
               f"{trajectory['duration_ms']}ms, finish={trajectory['finish_reason']}")
         return trajectory
 
+    async def publish_app(self, app_id: int) -> dict:
+        """Publish the app to Cloudflare Workers (production).
+
+        Returns {success, production_url, error, duration_ms, logs}.
+        """
+        t0 = time.time()
+        result = {"success": False, "production_url": None, "error": None}
+
+        try:
+            async with httpx.AsyncClient(timeout=600) as client:
+                resp = await client.post(
+                    f"{KLEAP_API_URL}/api/smart-deploy",
+                    json={"appId": app_id},
+                    headers=self._headers(),
+                )
+                result["status_code"] = resp.status_code
+                if resp.status_code == 200:
+                    data = resp.json()
+                    result["success"] = data.get("success", False)
+                    result["response"] = str(data)[:500]
+                else:
+                    result["error"] = resp.text[:500]
+        except Exception as e:
+            result["error"] = str(e)
+
+        # Wait a bit for the deploy to complete, then check DB
+        await asyncio.sleep(5)
+        try:
+            sb = self._get_admin_sb()
+            r = sb.table("apps").select("production_url, is_published").eq("id", app_id).limit(1).execute()
+            if r.data:
+                result["production_url"] = r.data[0].get("production_url")
+                result["is_published"] = r.data[0].get("is_published")
+        except Exception as e:
+            result["db_error"] = str(e)
+
+        result["duration_ms"] = int((time.time() - t0) * 1000)
+        print(f"[eval] Publish: success={result['success']} url={result.get('production_url')} "
+              f"status={result.get('status_code')} duration={result['duration_ms']}ms")
+        return result
+
+    async def check_production_url(self, production_url: str, pages: list[str] | None = None) -> dict:
+        """Check that the PRODUCTION URL (post-publish) actually works."""
+        if not production_url:
+            return {"prod_homepage_ok": False, "error": "no production url"}
+
+        base_url = production_url.rstrip("/")
+        result = {"prod_base_url": base_url, "prod_status_codes": {}, "prod_pages_ok": {}}
+        pages_to_check = ["/"] + (pages or [])
+
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+            for page in pages_to_check:
+                url = f"{base_url}{page}"
+                try:
+                    resp = await client.get(url)
+                    status = resp.status_code
+                    result["prod_status_codes"][page] = status
+                    ok = status == 200 and len(resp.text) > 100
+                    result["prod_pages_ok"][page] = ok
+                    if page == "/":
+                        result["prod_homepage_ok"] = ok
+                        result["prod_html_length"] = len(resp.text)
+                    print(f"[eval] Prod {page}: {status}")
+                except Exception as e:
+                    result["prod_status_codes"][page] = 0
+                    result["prod_pages_ok"][page] = False
+                    print(f"[eval] Prod {page}: FAILED ({e})")
+
+        if "/" not in result.get("prod_status_codes", {}):
+            result["prod_homepage_ok"] = False
+        return result
+
     async def get_app_files(self, app_id: int) -> dict[str, str]:
         """Get all files for an app from Supabase."""
         sb = self._get_admin_sb()
@@ -312,6 +385,16 @@ class AutoAgent(BaseAgent):
 
             preview = await self._client.check_preview(app_id, expected_pages)
 
+            # 3b. Publish to Cloudflare Workers (test production deploy)
+            publish = {}
+            prod_check = {}
+            if os.environ.get("TEST_PUBLISH", "0") == "1":
+                publish = await self._client.publish_app(app_id)
+                if publish.get("production_url"):
+                    prod_check = await self._client.check_production_url(
+                        publish["production_url"], expected_pages
+                    )
+
             # 4. Download resulting files from Supabase
             files = await self._client.get_app_files(app_id)
 
@@ -341,6 +424,8 @@ class AutoAgent(BaseAgent):
             # Write preview results so the test can use them
             preview_json = json.dumps({
                 "preview": preview,
+                "publish": publish,
+                "prod_check": prod_check,
                 "files": list(files.keys()),
                 "file_contents": all_code[:20000],  # First 20K of combined code
                 "tool_calls": trajectory.get("n_tool_calls", 0),
