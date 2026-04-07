@@ -196,44 +196,84 @@ class KleapEvalClient:
         return trajectory
 
     async def publish_app(self, app_id: int) -> dict:
-        """Publish the app to Cloudflare Workers (production).
+        """Publish the app and poll until deployment finishes.
 
-        Returns {success, production_url, error, duration_ms, logs}.
+        Returns {success, production_url, workflow_status, error, duration_ms}.
         """
         t0 = time.time()
         result = {"success": False, "production_url": None, "error": None}
 
+        # 1. Trigger the deploy
         try:
-            async with httpx.AsyncClient(timeout=600) as client:
+            async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.post(
                     f"{KLEAP_API_URL}/api/smart-deploy",
                     json={"appId": app_id},
                     headers=self._headers(),
                 )
-                result["status_code"] = resp.status_code
-                if resp.status_code == 200:
-                    data = resp.json()
-                    result["success"] = data.get("success", False)
-                    result["response"] = str(data)[:500]
-                else:
+                result["queue_status_code"] = resp.status_code
+                if resp.status_code != 200:
                     result["error"] = resp.text[:500]
+                    return result
+                data = resp.json()
+                if not data.get("success"):
+                    result["error"] = data.get("error", "queue rejected")
+                    return result
+                print(f"[eval] Deploy queued: {data.get('jobId') or data.get('workflowRunId')}")
         except Exception as e:
-            result["error"] = str(e)
+            result["error"] = f"trigger: {e}"
+            return result
 
-        # Wait a bit for the deploy to complete, then check DB
-        await asyncio.sleep(5)
+        # 2. Poll deployment_workflows until terminal state (max 12 min)
+        sb = self._get_admin_sb()
+        MAX_WAIT = 720  # 12 minutes
+        POLL_INTERVAL = 10  # seconds
+        poll_start = time.time()
+
+        while time.time() - poll_start < MAX_WAIT:
+            await asyncio.sleep(POLL_INTERVAL)
+            try:
+                r = sb.table("deployment_workflows").select(
+                    "status,current_step,result_url,result_error,result_attempts"
+                ).eq("app_id", app_id).order("created_at", desc=True).limit(1).execute()
+                if not r.data:
+                    continue
+                wf = r.data[0]
+                status = wf.get("status")
+                step = wf.get("current_step")
+                elapsed = int(time.time() - poll_start)
+                print(f"[eval] Deploy poll +{elapsed}s: status={status} step={step}")
+
+                if status == "success":
+                    result["success"] = True
+                    result["production_url"] = wf.get("result_url")
+                    result["workflow_status"] = "success"
+                    break
+                if status == "error":
+                    result["success"] = False
+                    result["workflow_status"] = "error"
+                    result["error"] = (wf.get("result_error") or "")[:500]
+                    result["attempts"] = wf.get("result_attempts")
+                    break
+            except Exception as e:
+                print(f"[eval] Poll error: {e}")
+
+        # Also fetch production_url from apps table (single source of truth)
         try:
-            sb = self._get_admin_sb()
-            r = sb.table("apps").select("production_url, is_published").eq("id", app_id).limit(1).execute()
-            if r.data:
-                result["production_url"] = r.data[0].get("production_url")
-                result["is_published"] = r.data[0].get("is_published")
-        except Exception as e:
-            result["db_error"] = str(e)
+            r2 = sb.table("apps").select(
+                "production_url,is_published"
+            ).eq("id", app_id).limit(1).execute()
+            if r2.data:
+                apps_prod = r2.data[0].get("production_url")
+                if apps_prod and not result.get("production_url"):
+                    result["production_url"] = apps_prod
+                result["is_published"] = r2.data[0].get("is_published")
+        except Exception:
+            pass
 
         result["duration_ms"] = int((time.time() - t0) * 1000)
-        print(f"[eval] Publish: success={result['success']} url={result.get('production_url')} "
-              f"status={result.get('status_code')} duration={result['duration_ms']}ms")
+        print(f"[eval] Publish done: success={result['success']} url={result.get('production_url')} "
+              f"duration={result['duration_ms']}ms error={result.get('error','')[:100]}")
         return result
 
     async def check_production_url(self, production_url: str, pages: list[str] | None = None) -> dict:
