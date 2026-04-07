@@ -1,0 +1,1 @@
+Create a photography portfolio for "Maya Chen" with 9 high-quality project images in a masonry grid. Use real Unsplash photos for the gallery. Each image has a hover overlay showing the project title. Include an about page and contact page.
