@@ -1,0 +1,13 @@
+[task]
+name = "sophie/german-contact-onboarding"
+description = "German forklift service prospect. Must generate an email ENTIRELY in German with no English or French leaks."
+author = "robotspeed"
+difficulty = "medium"
+categories = ["sophie", "first-contact", "de", "multilingual"]
+tags = ["sophie", "german", "forklift"]
+
+[resources]
+timeout_sec = 180
+cpus = 1
+memory_mb = 1024
+storage_mb = 512

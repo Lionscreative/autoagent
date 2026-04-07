@@ -1,0 +1,13 @@
+[task]
+name = "sophie/generic-email-prefix"
+description = "Generic support@ email with 'support' as contact_name. No real person name available. Must NOT greet with 'Salut Support,'."
+author = "robotspeed"
+difficulty = "medium"
+categories = ["sophie", "first-contact", "en", "edge-case", "name-extraction"]
+tags = ["sophie", "generic-prefix", "english"]
+
+[resources]
+timeout_sec = 180
+cpus = 1
+memory_mb = 1024
+storage_mb = 512
