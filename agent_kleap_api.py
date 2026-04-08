@@ -471,6 +471,13 @@ class AutoAgent(BaseAgent):
                            and (p, c) not in priority_files]
             all_code = "\n".join(f"=== {p} ===\n{c}" for p, c in priority_files + other_files)
 
+            # Per-file map (trimmed per file) so tests can inspect specific files
+            file_contents_map = {
+                p: (c[:10000] if c else "")
+                for p, c in files.items()
+                if p.endswith((".tsx", ".ts", ".css", ".json", ".mjs"))
+            }
+
             # Write preview results so the test can use them
             preview_json = json.dumps({
                 "preview": preview,
@@ -478,9 +485,12 @@ class AutoAgent(BaseAgent):
                 "prod_check": prod_check,
                 "files": list(files.keys()),
                 "file_contents": all_code[:50000],  # First 50K of combined code (prioritized)
+                "file_contents_map": file_contents_map,  # Per-file for targeted tests
                 "tool_calls": trajectory.get("n_tool_calls", 0),
                 "duration_ms": trajectory.get("duration_ms", 0),
                 "ai_text": trajectory.get("ai_text", "")[:1000],
+                "finish_reason": trajectory.get("finish_reason", ""),
+                "errors": trajectory.get("errors", []),
             })
             preview_encoded = base64.b64encode(preview_json.encode()).decode()
             await environment.exec(

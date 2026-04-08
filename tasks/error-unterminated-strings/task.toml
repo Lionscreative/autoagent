@@ -1,0 +1,13 @@
+[task]
+name = "kleap/error-unterminated-strings"
+description = "Reproduces 'Unterminated string constant' error — tests AI escapes quotes/apostrophes correctly"
+author = "kleap"
+difficulty = "medium"
+categories = ["web-development", "publish", "error-recovery"]
+tags = ["nextjs", "strings", "escaping", "publish", "error-pattern"]
+
+[resources]
+timeout_sec = 600
+cpus = 2
+memory_mb = 2048
+storage_mb = 4096

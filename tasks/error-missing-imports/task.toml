@@ -1,0 +1,13 @@
+[task]
+name = "kleap/error-missing-imports"
+description = "Reproduces 'Module not found' error pattern — tests that AI doesn't import non-existent shadcn components"
+author = "kleap"
+difficulty = "medium"
+categories = ["web-development", "publish", "error-recovery"]
+tags = ["nextjs", "shadcn", "imports", "publish", "error-pattern"]
+
+[resources]
+timeout_sec = 600
+cpus = 2
+memory_mb = 2048
+storage_mb = 4096

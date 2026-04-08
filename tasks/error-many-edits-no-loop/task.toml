@@ -1,0 +1,13 @@
+[task]
+name = "kleap/error-many-edits-no-loop"
+description = "Reproduces 'stuck_pattern:restart_diagnose_loop' — tests AI iterates without restart/diagnose looping"
+author = "kleap"
+difficulty = "hard"
+categories = ["web-development", "error-recovery"]
+tags = ["nextjs", "dashboard", "restart-loop", "error-pattern"]
+
+[resources]
+timeout_sec = 900
+cpus = 2
+memory_mb = 2048
+storage_mb = 4096

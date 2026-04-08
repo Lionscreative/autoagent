@@ -1,0 +1,13 @@
+[task]
+name = "kleap/error-use-client-directive"
+description = "Reproduces '\"use client\" directive must be placed before other expressions'"
+author = "kleap"
+difficulty = "medium"
+categories = ["web-development", "publish", "error-recovery"]
+tags = ["nextjs", "use-client", "directive", "publish", "error-pattern"]
+
+[resources]
+timeout_sec = 600
+cpus = 2
+memory_mb = 2048
+storage_mb = 4096
