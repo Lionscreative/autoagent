@@ -460,9 +460,16 @@ class AutoAgent(BaseAgent):
                 except Exception as e:
                     print(f"[eval] Warning: failed to upload {path}: {e}")
 
-            # Combine all file contents for content analysis
-            all_code = "\n".join(f"{path}:\n{content}" for path, content in files.items()
-                                 if path.endswith((".tsx", ".ts", ".css")))
+            # Combine all file contents for content analysis.
+            # Prioritize key files (app/page.tsx, layouts, site-config) so they're
+            # always included even if total size exceeds the limit.
+            priority_patterns = ("app/page.tsx", "app/layout.tsx", "lib/site-config", "globals.css")
+            priority_files = [(p, c) for p, c in files.items()
+                              if any(p.endswith(pat) or pat in p for pat in priority_patterns)]
+            other_files = [(p, c) for p, c in files.items()
+                           if p.endswith((".tsx", ".ts", ".css"))
+                           and (p, c) not in priority_files]
+            all_code = "\n".join(f"=== {p} ===\n{c}" for p, c in priority_files + other_files)
 
             # Write preview results so the test can use them
             preview_json = json.dumps({
@@ -470,7 +477,7 @@ class AutoAgent(BaseAgent):
                 "publish": publish,
                 "prod_check": prod_check,
                 "files": list(files.keys()),
-                "file_contents": all_code[:20000],  # First 20K of combined code
+                "file_contents": all_code[:50000],  # First 50K of combined code (prioritized)
                 "tool_calls": trajectory.get("n_tool_calls", 0),
                 "duration_ms": trajectory.get("duration_ms", 0),
                 "ai_text": trajectory.get("ai_text", "")[:1000],

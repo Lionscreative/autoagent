@@ -1,0 +1,13 @@
+[task]
+name = "kleap/publish-no-template-leak"
+description = "Verify app/page.tsx imports all components (no Welcome to Your App leak)"
+author = "kleap"
+difficulty = "easy"
+categories = ["publish-quality"]
+tags = ["nextjs", "critical-bug", "template-leak"]
+
+[resources]
+timeout_sec = 600
+cpus = 2
+memory_mb = 2048
+storage_mb = 4096
