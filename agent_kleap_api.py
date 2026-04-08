@@ -252,7 +252,9 @@ class KleapEvalClient:
                 if status == "error":
                     result["success"] = False
                     result["workflow_status"] = "error"
-                    result["error"] = (wf.get("result_error") or "")[:500]
+                    full_err = wf.get("result_error") or ""
+                    result["error"] = full_err[:1500]
+                    print(f"[eval] FULL DEPLOY ERROR for app {app_id}:\n{full_err[:2000]}")
                     result["attempts"] = wf.get("result_attempts")
                     break
             except Exception as e:
@@ -272,8 +274,9 @@ class KleapEvalClient:
             pass
 
         result["duration_ms"] = int((time.time() - t0) * 1000)
+        err_str = (result.get("error") or "")[:100]
         print(f"[eval] Publish done: success={result['success']} url={result.get('production_url')} "
-              f"duration={result['duration_ms']}ms error={result.get('error','')[:100]}")
+              f"duration={result['duration_ms']}ms error={err_str}")
         return result
 
     async def check_production_url(self, production_url: str, pages: list[str] | None = None) -> dict:
@@ -520,8 +523,10 @@ class AutoAgent(BaseAgent):
             raise
 
         finally:
-            if app_id:
+            if app_id and os.environ.get("SKIP_CLEANUP", "0") != "1":
                 await self._client.cleanup_app(app_id)
+            elif app_id:
+                print(f"[eval] SKIP_CLEANUP=1 — keeping app {app_id} for inspection")
 
 
 __all__ = ["AutoAgent"]
