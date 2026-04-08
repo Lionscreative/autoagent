@@ -1,0 +1,20 @@
+FROM python:3.12-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+# Python deps for the verifier (none needed beyond stdlib for writer tasks —
+# all scoring already happens in scripts/section-writer-eval.ts on the host)
+
+# Copy the shared writer verifier library so tasks can import it
+RUN mkdir -p /tasks-writer
+COPY tasks-writer/_verifier_lib.py /tasks-writer/_verifier_lib.py
+
+# Harbor mounts the task dir at runtime at /task; this is just a warm slot
+WORKDIR /task
+RUN mkdir -p /logs/verifier
+
+# PYTHONPATH: /tasks-writer first so test.py's `from _verifier_lib import ...`
+# finds the writer lib, not any Sophie lib that may leak via shared volumes.
+ENV PYTHONPATH=/tasks-writer:/task

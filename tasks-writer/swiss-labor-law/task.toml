@@ -1,0 +1,13 @@
+[task]
+name = "writer/swiss-labor-law"
+description = "Score writeSection on a Swiss labor-law fixture (lettre de démission en Suisse) — real research, real SERP, all 4 scorers."
+author = "robotspeed"
+difficulty = "medium"
+categories = ["writer", "section", "fr", "ch", "baseline"]
+tags = ["writer", "eval", "french", "swiss", "labor-law"]
+
+[resources]
+timeout_sec = 300
+cpus = 1
+memory_mb = 1024
+storage_mb = 512
